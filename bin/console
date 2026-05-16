@@ -1,0 +1,178 @@
+#!/usr/bin/env php
+<?php
+
+/**
+ * Sidecar console — three subcommands:
+ *
+ *   oauth:setup                 Walk through the Intuit OAuth dance.
+ *   webhook:listen [host:port]  Run the sidecar via PHP -S (default 0.0.0.0:8181).
+ *   tax:recalc <invoice_id> --realm=<realmId>  Manually recompute one invoice.
+ *
+ * @license Apache-2.0 OR GPL-2.0-or-later
+ */
+
+// SPDX-License-Identifier: Apache-2.0 OR GPL-2.0-or-later
+
+declare(strict_types=1);
+
+use OpenSalesTax\QuickBooksOnline\Config\Config;
+use OpenSalesTax\QuickBooksOnline\Config\ConfigException;
+use OpenSalesTax\QuickBooksOnline\Service\Bootstrap;
+
+$autoload = null;
+foreach ([__DIR__ . '/../vendor/autoload.php', __DIR__ . '/../../../autoload.php'] as $candidate) {
+    if (file_exists($candidate)) {
+        $autoload = $candidate;
+        break;
+    }
+}
+if ($autoload === null) {
+    fwrite(STDERR, "missing vendor/autoload.php — run `composer install` first.\n");
+    exit(1);
+}
+require $autoload;
+
+/**
+ * @param list<string> $argv
+ */
+function main(array $argv): int
+{
+    $cmd = $argv[1] ?? '';
+    $args = array_slice($argv, 2);
+    switch ($cmd) {
+        case 'oauth:setup':
+            return cmdOauthSetup();
+        case 'webhook:listen':
+            return cmdWebhookListen($args);
+        case 'tax:recalc':
+            return cmdTaxRecalc($args);
+        case '--help':
+        case '-h':
+        case '':
+            printUsage();
+            return 0;
+        default:
+            fwrite(STDERR, "unknown command: {$cmd}\n");
+            printUsage();
+            return 2;
+    }
+}
+
+function printUsage(): void
+{
+    fwrite(STDOUT, <<<USAGE
+Usage:
+  bin/console oauth:setup
+  bin/console webhook:listen [host:port]
+  bin/console tax:recalc <invoice_id> --realm=<realmId>
+
+Commands:
+  oauth:setup    Walk through the Intuit OAuth authorization-code flow.
+                 Prints the authorization URL to visit; on browser callback
+                 the sidecar exchanges the code and stores the token.
+  webhook:listen Run the sidecar under PHP's built-in dev server
+                 (default 0.0.0.0:8181). For production, use php-fpm + nginx.
+  tax:recalc     Manually recompute tax on one QBO invoice.
+
+USAGE);
+}
+
+function loadConfig(): Config
+{
+    try {
+        return new Config();
+    } catch (ConfigException $e) {
+        fwrite(STDERR, "configuration error: " . $e->getMessage() . "\n");
+        exit(1);
+    }
+}
+
+function cmdOauthSetup(): int
+{
+    $config = loadConfig();
+    $oauth = Bootstrap::oauthFlow($config);
+    $callbackHandler = Bootstrap::oauthCallbackHandler($config);
+
+    $state = bin2hex(random_bytes(16));
+    $callbackHandler->writeState($state);
+    $url = $oauth->authorizationUrl($state);
+
+    fwrite(STDOUT, <<<OUT
+OAuth setup — visit the URL below in a browser, authorize, and the
+sidecar's /oauth/callback endpoint will receive the code automatically.
+
+Make sure the sidecar is running (`bin/console webhook:listen`) and
+that QBO_REDIRECT_URI matches the URL the sidecar is listening on.
+
+Authorization URL:
+
+  {$url}
+
+Waiting for the browser callback. Press Ctrl-C to abort.
+
+OUT);
+
+    return 0;
+}
+
+/**
+ * @param list<string> $args
+ */
+function cmdWebhookListen(array $args): int
+{
+    $hostPort = $args[0] ?? '0.0.0.0:8181';
+    $entry = realpath(__DIR__ . '/sidecar.php');
+    if ($entry === false) {
+        fwrite(STDERR, "cannot resolve bin/sidecar.php\n");
+        return 1;
+    }
+    fwrite(STDOUT, "starting sidecar on http://{$hostPort} (entry: {$entry})\n");
+    fwrite(STDOUT, "routes:\n  GET  /health\n  POST /webhooks/quickbooks-online\n  GET  /oauth/callback\n");
+    $cmd = sprintf(
+        '%s -S %s %s',
+        PHP_BINARY,
+        escapeshellarg($hostPort),
+        escapeshellarg($entry),
+    );
+    passthru($cmd, $exit);
+    return $exit;
+}
+
+/**
+ * @param list<string> $args
+ */
+function cmdTaxRecalc(array $args): int
+{
+    $invoiceId = null;
+    $realmId = null;
+    foreach ($args as $arg) {
+        if (str_starts_with($arg, '--realm=')) {
+            $realmId = substr($arg, strlen('--realm='));
+        } elseif ($invoiceId === null) {
+            $invoiceId = $arg;
+        }
+    }
+    if ($invoiceId === null) {
+        fwrite(STDERR, "missing invoice id (usage: tax:recalc <invoice_id> --realm=<realmId>)\n");
+        return 2;
+    }
+    if ($realmId === null) {
+        $config = loadConfig();
+        $realms = Bootstrap::tokenStore($config)->listRealms();
+        if (count($realms) === 1) {
+            $realmId = $realms[0];
+        } else {
+            fwrite(STDERR, "must specify --realm=<realmId> (token store has " . count($realms) . " realms)\n");
+            return 2;
+        }
+    }
+
+    $config = loadConfig();
+    $logger = new \OpenSalesTax\QuickBooksOnline\Logging\StderrLogger();
+    $processor = Bootstrap::invoiceProcessor($config, $logger);
+    $result = $processor->process($realmId, $invoiceId);
+    fwrite(STDOUT, json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n");
+    return ($result['applied'] ?? false) ? 0 : 1;
+}
+
+exit(main($GLOBALS['argv']));

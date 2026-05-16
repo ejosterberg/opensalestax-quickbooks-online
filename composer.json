@@ -1,0 +1,72 @@
+{
+    "name": "ejosterberg/opensalestax-quickbooks-online",
+    "description": "Self-hostable QuickBooks Online sidecar that adds destination-based US sales tax to QBO invoices via the OpenSalesTax engine — replaces Intuit Automated Sales Tax.",
+    "type": "project",
+    "license": ["Apache-2.0", "GPL-2.0-or-later"],
+    "keywords": [
+        "quickbooks",
+        "quickbooks-online",
+        "qbo",
+        "intuit",
+        "tax",
+        "sales-tax",
+        "us-tax",
+        "opensalestax",
+        "webhook",
+        "sidecar"
+    ],
+    "homepage": "https://github.com/ejosterberg/opensalestax-quickbooks-online",
+    "authors": [
+        {
+            "name": "Eric Osterberg",
+            "email": "ejosterberg@gmail.com"
+        }
+    ],
+    "require": {
+        "php": ">=8.2",
+        "ext-json": "*",
+        "ext-openssl": "*",
+        "ejosterberg/opensalestax": "^0.1",
+        "guzzlehttp/guzzle": "^7.8",
+        "psr/http-client": "^1.0",
+        "psr/http-message": "^1.1 || ^2.0",
+        "psr/log": "^1.0 || ^2.0 || ^3.0",
+        "quickbooks/v3-php-sdk": "^6.1"
+    },
+    "require-dev": {
+        "phpstan/phpstan": "^1.11",
+        "phpunit/phpunit": "^10.5",
+        "squizlabs/php_codesniffer": "^3.10"
+    },
+    "autoload": {
+        "psr-4": {
+            "OpenSalesTax\\QuickBooksOnline\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "OpenSalesTax\\QuickBooksOnline\\Tests\\": "tests/"
+        }
+    },
+    "bin": [
+        "bin/console"
+    ],
+    "scripts": {
+        "check": [
+            "@test",
+            "@stan",
+            "@cs",
+            "@security-audit"
+        ],
+        "test": "phpunit",
+        "stan": "phpstan analyse --no-progress",
+        "cs": "phpcs",
+        "cs-fix": "phpcbf",
+        "security-audit": "@composer audit"
+    },
+    "config": {
+        "sort-packages": true
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}

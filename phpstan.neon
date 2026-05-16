@@ -1,0 +1,27 @@
+parameters:
+    level: max
+    paths:
+        - src
+        - tests
+        - bin
+    excludePaths:
+        - vendor
+    reportUnmatchedIgnoredErrors: false
+    treatPhpDocTypesAsCertain: false
+    ignoreErrors:
+        # Anonymous-class stubs in tests: PHPStan cannot infer the assertion
+        # narrows the optional `tax_total` / `reason` keys, but the tests
+        # ARE the contract — if a stub returns the field, accessing it is
+        # safe.
+        -
+            message: "#Offset 'tax_total' does not exist on array#"
+            path: tests/Unit/Service/InvoiceProcessorTest.php
+        -
+            message: "#Offset 'reason' does not exist on array#"
+            path: tests/Unit/Service/InvoiceProcessorTest.php
+        # Test-only PayloadBuilder fixture sub-array access: the helper
+        # builds a known-shape array and tests assert against it via
+        # direct offset access; full type-narrowing would only add noise.
+        -
+            message: '#Cannot access (offset .* on mixed|an offset on mixed)#'
+            path: tests/Unit/QuickBooksOnline/InvoicePayloadBuilderTest.php

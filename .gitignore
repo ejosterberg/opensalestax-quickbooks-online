@@ -1,0 +1,16 @@
+/vendor/
+/composer.lock
+/.test-php.ini
+/.phpunit.cache/
+/coverage.xml
+/.env
+/.env.local
+/.claude-session-lock.json
+/.idea/
+/.vscode/
+/var/
+/storage/
+*.log
+.phpunit.result.cache
+.phpcs.cache
+.phpstan.cache
