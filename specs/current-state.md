@@ -1,9 +1,15 @@
 # Current state — opensalestax-quickbooks-online
 
-> Updated 2026-05-15 at v0.1.0-alpha.1 release.
+> Updated 2026-05-17 at v0.1.0-alpha.2 release.
 
 ## Shipped
 
+- **v0.1.0-alpha.2** — Intuit ToS compliance documentation pass.
+  Three new docs (`specs/security/data-handling.md` for §12.2(iii),
+  `specs/operations/incident-response.md` for §13.4–13.5,
+  `specs/operations/insurance-prereq.md` for §20.4). README gains
+  Prerequisites, Data handling, and Incident response sections.
+  No runtime / functional code changes.
 - **v0.1.0-alpha.1** — first public alpha. Sidecar architecture
   (Shape B). 38 unit tests. PHPStan max clean. PHPCS PSR-12 clean.
   `composer audit` clean. Not yet validated against a live Intuit

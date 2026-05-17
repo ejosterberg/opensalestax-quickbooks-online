@@ -81,6 +81,36 @@ full architectural decision record.
 | PHP | 8.2, 8.3, 8.4 | CI matrix. |
 | OS | Linux | Tested on Debian 13. Should run on any POSIX with PHP-FPM. |
 
+## Prerequisites
+
+Before deploying the sidecar into production, the merchant operator
+needs to have these in place:
+
+- **An Intuit Developer account** with a registered app (the source
+  of `QBO_CLIENT_ID` / `QBO_CLIENT_SECRET` / `QBO_WEBHOOK_VERIFIER_TOKEN`).
+- **A running OpenSalesTax engine** the merchant operates themselves.
+  This sidecar does NOT include the engine. See the
+  [OpenSalesTax engine repo](https://github.com/ejosterberg/opensalestax).
+- **Comprehensive business insurance** covering professional liability,
+  cyber liability, general liability, and (if applicable) product
+  liability. This is required by Intuit Developer ToS §20.4 of any
+  Developer integrating with the Intuit Developer Platform. Coverage
+  must be maintained during the deployment and for **3 years
+  thereafter**. The merchant is the "Developer" per Intuit's terms,
+  so this is the merchant's obligation, not the OpenSalesTax
+  project's. See [`specs/operations/insurance-prereq.md`](specs/operations/insurance-prereq.md)
+  for full guidance, cost ranges, and the pre-deployment checklist.
+- **A documented incident-response process.** Intuit ToS §13.4
+  requires Security Incident notice to Intuit within **24 hours of
+  discovery**, with risk-classified remediation SLAs running 7 days
+  (Immediate) to 1 year (Low). The runbook in
+  [`specs/operations/incident-response.md`](specs/operations/incident-response.md)
+  covers what to do; adopt it as your own or use it as a template.
+
+Sandbox / development deployments can skip the insurance and IR
+requirements, but anything that handles real merchant data needs
+them in place before go-live.
+
 ## Install
 
 ```bash
@@ -175,6 +205,105 @@ Useful for backfilling historical invoices that pre-date the sidecar.
   the merchant's own process; OST has no callback into it.
 - **Your tokens stay on your disk.** The encrypted JSON store lives at
   `QBO_TOKEN_STORE_PATH`. Back it up with the rest of `/var/`.
+
+## Data handling
+
+This section is the user-facing disclosure required by Intuit
+Developer ToS §12.2(iii). The detailed operator-facing version lives
+in [`specs/security/data-handling.md`](specs/security/data-handling.md).
+
+**Where data is processed.** The sidecar processes invoice metadata
+and customer addresses entirely on **the merchant's own
+infrastructure**. Data is never processed on Intuit's infrastructure
+on the merchant's behalf, and never on OpenSalesTax-hosted
+infrastructure — the OpenSalesTax project does not operate a hosted
+service that handles merchant data.
+
+**Roles per Intuit ToS §12.4.** The merchant operator and Intuit are
+each independent data controllers; neither processes Personal
+Information on the other's behalf. The sidecar (the code in this
+repository) is a tool the merchant uses to exercise their own
+processing decisions — it does not change the merchant's controller
+status, and the OpenSalesTax project (the entity that wrote the code)
+is neither a controller nor a processor for any merchant deployment.
+
+**What is retained at rest.** Only two things:
+
+- **OAuth tokens**, encrypted with libsodium
+  (`sodium_crypto_secretbox` / XSalsa20-Poly1305), in a JSON file
+  the merchant chooses the path of (`QBO_TOKEN_STORE_PATH`).
+- **A short-lived replay-defense cache** of recent webhook
+  signatures, in-memory only, wiped on every process restart.
+
+No invoice contents, no customer PII, no transaction history is
+persisted to the sidecar's disk.
+
+**Data flow.**
+
+```
++--------------------+   1. webhook (event metadata only)   +-------------------+
+|  QuickBooks Online | -----------------------------------> |  Sidecar          |
+|  (Intuit-hosted)   |   4. POST writeback (TxnTaxDetail)   |  (merchant infra) |
+|                    | <----------------------------------- |                   |
++--------------------+                                      +---------+---------+
+                                       2. GET invoice (full record)   |
+                            <-------------------------------------+   |
+                                                                  |   |
+                                                                  v   v
+                                                              +-------------------+
+                                                              |  QBO API          |
+                                                              |  (Intuit-hosted)  |
+                                                              +-------------------+
+
+                                       3. POST /v1/calculate
+                                       (ZIP + line subtotals only)
+                                                          +
+                                                          v
+                                                  +-------------------+
+                                                  |  OST engine       |
+                                                  |  (merchant infra) |
+                                                  +-------------------+
+```
+
+**What crosses each hop.**
+
+1. **QBO → sidecar (webhook)**: event metadata only — `realmId`,
+   invoice ID, `Invoice.Create` or `Invoice.Update`, timestamp,
+   `intuit-signature` HMAC. No invoice content.
+2. **Sidecar → QBO API (read)**: OAuth token + `realmId` +
+   `invoiceId`. Response includes the full invoice; held in memory,
+   not persisted.
+3. **Sidecar → OST engine**: only the destination ZIP/state, line
+   subtotals, and currency — the minimum the engine needs to compute
+   a rate. Customer name, email, billing address street, invoice
+   number, line descriptions are stripped before the call.
+4. **Sidecar → QBO API (write)**: OAuth token + `realmId` +
+   `invoiceId` + `TxnTaxDetail` (the computed tax line). No PII
+   echoed back.
+
+**The OpenSalesTax project sees none of this.** There is no
+telemetry, no callback, no upload of any kind from the sidecar to
+the project maintainer.
+
+## Incident response
+
+If you discover a Security Incident affecting a sidecar deployment
+(token compromise, encryption-key leak, host compromise, etc.),
+Intuit Developer ToS §13.4 requires you to notify Intuit within
+**24 hours of discovery**. ToS §13.5 establishes risk-classified
+remediation SLAs running 7 days (Immediate) to 1 year (Low).
+
+The full runbook is in
+[`specs/operations/incident-response.md`](specs/operations/incident-response.md).
+It covers what counts as an incident, the 24-hour notification
+timeline, a Security Incident Notice template, the risk-classification
+decision matrix with sidecar-specific examples, per-incident-type
+containment playbooks, a notification log template, and an annual
+security-drill recommendation.
+
+For vulnerabilities in the sidecar code itself (as opposed to
+operational incidents in a deployment), see [`SECURITY.md`](SECURITY.md)
+for the coordinated-disclosure process.
 
 ## License
 

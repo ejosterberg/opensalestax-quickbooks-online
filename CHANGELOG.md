@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0-alpha.2] — 2026-05-17
+
+### Added
+
+- **Data-handling disclosure (QBO-1, Intuit ToS §12.2(iii) compliance).** New `README.md` Data handling section + `specs/security/data-handling.md` explicitly clarify that the sidecar acts as an independent data controller; merchant data flows merchant → sidecar → engine without OpenSalesTax-hosted infrastructure ever processing it.
+- **Incident-response runbook (QBO-2, Intuit ToS §13.4–13.5 compliance).** New `specs/operations/incident-response.md` covers the 24-hour Intuit notification window, risk classification (Immediate/High/Medium/Low SLAs), per-incident-type remediation playbooks, and annual drill guidance.
+- **Insurance prerequisite documentation (QBO-3, Intuit ToS §20.4 compliance).** New `specs/operations/insurance-prereq.md` flags the merchant's obligation to maintain professional/cyber/general/product liability insurance during the deployment Term + 3 years after. README Prerequisites section updated.
+
+### Notes
+
+- All three additions are documentation only. No runtime / functional code changes.
+
 ## [0.1.0-alpha.1] — 2026-05-15
 
 First public release of the OpenSalesTax sidecar for QuickBooks Online.

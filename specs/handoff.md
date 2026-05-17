@@ -1,6 +1,6 @@
 # Handoff — opensalestax-quickbooks-online
 
-> Updated 2026-05-15 at v0.1.0-alpha.1 release.
+> Updated 2026-05-17 at v0.1.0-alpha.2 release.
 
 ## Pick up here
 
@@ -43,6 +43,37 @@
 3. **Hub repo connector matrix.** Add v0.1.0-alpha.1 row to the hub
    repo's "OpenSalesTax connectors" table. Note: alpha — pending live
    sandbox validation.
+
+## Pre-graduation blockers for v0.1.0-stable
+
+Items that must be in place before the alpha can graduate to stable.
+Tracked here so future captain sessions don't accidentally promote
+an incomplete release.
+
+1. **Live Intuit sandbox round-trip** (item 1 above). Functional gate.
+2. **Insurance prerequisite called out in upgrade docs.** Intuit ToS
+   §20.4 obligates the merchant (the "Developer" under Intuit's
+   terms) to maintain professional / cyber / general / product
+   liability insurance during the deployment and for **3 years
+   after** termination. The merchant-facing documentation in
+   `specs/operations/insurance-prereq.md` covers the obligation in
+   depth and the README "Prerequisites" section now flags it before
+   Install. When writing v0.1.0-stable upgrade notes / release blog
+   / hub-repo entry, repeat the insurance-prereq pointer prominently
+   — merchants should not be surprised by this at deploy time.
+   Documentation gate (already met by v0.1.0-alpha.2); ensure the
+   stable release notes carry the same callout.
+3. **Incident-response runbook visibility.** `specs/operations/
+   incident-response.md` exists as of v0.1.0-alpha.2. v0.1.0-stable
+   release notes should explicitly point merchants at it; the
+   24-hour Intuit-notification clock under ToS §13.4 is a surprise
+   the first time you hit it. Documentation gate (met); just need
+   the visibility in stable release notes.
+4. **Data-handling disclosure visibility.** `specs/security/
+   data-handling.md` + the README "Data handling" section satisfy
+   ToS §12.2(iii) as of v0.1.0-alpha.2. Documentation gate (met);
+   keep the disclosure accurate as new event types (`Estimate`,
+   `SalesReceipt`, `CreditMemo`) get added in v0.2.
 
 ## v0.2 priorities (rough ordering)
 
