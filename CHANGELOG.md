@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0-alpha.5] — 2026-05-19
+
+### Changed
+
+- **CP-9: bumped `ejosterberg/opensalestax` constraint from `^0.2.0` to
+  `^0.3.0`.** Picks up the SDK's new `?Shipping $shipping = null` arg
+  on `Client::calculate()` plus `CalculateResponse::$shipping` /
+  `$coverageWarning`.
+
+### Notes
+
+- QuickBooks Online invoices don't expose a separate pre-tax
+  shipping field on the `Invoice` resource — shipping is typically
+  embedded as a `SalesItemLineDetail` line with a service item like
+  "Shipping". The connector treats every `SalesItemLineDetail` as a
+  taxable line item per its category mapping; merchants who add
+  shipping as such a line get it taxed via the existing line-item
+  path. No behavior change in this release.
+
 ## [0.1.0-alpha.4] — 2026-05-19
 
 ### Changed
