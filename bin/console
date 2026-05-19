@@ -2,11 +2,12 @@
 <?php
 
 /**
- * Sidecar console — three subcommands:
+ * Sidecar console — four subcommands:
  *
  *   oauth:setup                 Walk through the Intuit OAuth dance.
  *   webhook:listen [host:port]  Run the sidecar via PHP -S (default 0.0.0.0:8181).
  *   tax:recalc <invoice_id> --realm=<realmId>  Manually recompute one invoice.
+ *   health:check                Probe the OST engine /v1/health (CP-4).
  *
  * @license Apache-2.0 OR GPL-2.0-or-later
  */
@@ -15,6 +16,7 @@
 
 declare(strict_types=1);
 
+use OpenSalesTax\QuickBooksOnline\Cli\HealthCheckCommand;
 use OpenSalesTax\QuickBooksOnline\Config\Config;
 use OpenSalesTax\QuickBooksOnline\Config\ConfigException;
 use OpenSalesTax\QuickBooksOnline\Service\Bootstrap;
@@ -46,6 +48,8 @@ function main(array $argv): int
             return cmdWebhookListen($args);
         case 'tax:recalc':
             return cmdTaxRecalc($args);
+        case 'health:check':
+            return cmdHealthCheck();
         case '--help':
         case '-h':
         case '':
@@ -65,6 +69,7 @@ Usage:
   bin/console oauth:setup
   bin/console webhook:listen [host:port]
   bin/console tax:recalc <invoice_id> --realm=<realmId>
+  bin/console health:check
 
 Commands:
   oauth:setup    Walk through the Intuit OAuth authorization-code flow.
@@ -73,6 +78,8 @@ Commands:
   webhook:listen Run the sidecar under PHP's built-in dev server
                  (default 0.0.0.0:8181). For production, use php-fpm + nginx.
   tax:recalc     Manually recompute tax on one QBO invoice.
+  health:check   Probe the configured OST engine /v1/health endpoint and
+                 report reachability. Exits 0/1/2 (ok/config-error/unreachable).
 
 USAGE);
 }
@@ -173,6 +180,17 @@ function cmdTaxRecalc(array $args): int
     $result = $processor->process($realmId, $invoiceId);
     fwrite(STDOUT, json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n");
     return ($result['applied'] ?? false) ? 0 : 1;
+}
+
+function cmdHealthCheck(): int
+{
+    try {
+        $cmd = HealthCheckCommand::fromProcessEnv();
+    } catch (ConfigException $e) {
+        fwrite(STDERR, "config error: " . $e->getMessage() . "\n");
+        return 1;
+    }
+    return $cmd->run(STDOUT);
 }
 
 exit(main($GLOBALS['argv']));

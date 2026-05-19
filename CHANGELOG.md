@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0-alpha.3] — 2026-05-19
+
+### Added
+
+- **`bin/console health:check` CLI subcommand (CP-4).** New command-line
+  equivalent of the admin "Test Connection" button shipped in WooCom v0.5
+  / Vendure v1.3 / Saleor v1.0. The QBO sidecar has no admin UI (it's a
+  headless webhook listener), so the CLI is the right surface here:
+  ```
+  $ bin/console health:check
+  ✓ Engine v0.59.0 reachable — status=ok database=connected (RTT 41 ms)
+  ```
+  Reads the same `OST_ENGINE_URL` + `OST_API_KEY` + `OST_TIMEOUT_SECONDS`
+  + SIDECAR_ALLOW_PRIVATE_NETWORKS env vars the sidecar uses at runtime,
+  so a successful health check guarantees the same auth + URL path the
+  webhook handler will use. Exit codes: 0 (reachable), 1 (config error —
+  missing/invalid env var), 2 (engine unreachable). Catches typo'd
+  engine URLs at deploy time rather than at first webhook delivery.
+  Wired via:
+  - `Cli\HealthCheckCommand` — pure command class (testable in
+    isolation via Guzzle MockHandler; respects the same SSRF URL
+    validator the webhook handler uses).
+  - `bin/console health:check` — fourth subcommand on the existing CLI
+    router (alongside `oauth:setup` / `webhook:listen` / `tax:recalc`).
+  - 5 unit tests exercising healthy / non-200 / transport-error /
+    URL-rejected / db-disconnected shapes.
+
 ## [0.1.0-alpha.2] — 2026-05-17
 
 ### Added

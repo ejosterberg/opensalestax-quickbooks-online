@@ -157,6 +157,29 @@ For production, behind nginx + PHP-FPM. The sidecar exposes:
 - `POST /webhooks/quickbooks-online` — Intuit's webhook callback
 - `GET /oauth/callback` — Intuit OAuth redirect URI
 
+## Verify engine connectivity (CLI)
+
+Before authorizing the sidecar against your QBO company, confirm it can
+reach the configured OpenSalesTax engine:
+
+```bash
+$ bin/console health:check
+✓ Engine v0.59.0 reachable — status=ok database=connected (RTT 41 ms)
+```
+
+The command uses the same `OST_ENGINE_URL` + `OST_API_KEY` + SSRF URL
+validator as the webhook handler, so a green check here guarantees the same
+auth + URL path will work at webhook delivery time. Exit codes:
+
+- `0` — engine reachable
+- `1` — config error (missing/invalid env var)
+- `2` — engine unreachable / non-200 / transport error
+
+This is the sidecar equivalent of the "Test Connection" admin button shipped
+in the WooCommerce, Vendure, and Saleor connectors — same intent (catch
+typo'd engine URLs at deploy time instead of at first checkout), different
+surface (no admin UI on a headless sidecar).
+
 ## Authorize the sidecar against your QBO company
 
 Run the OAuth dance once per company:
